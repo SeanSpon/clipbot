@@ -14,7 +14,7 @@
     "@remotion/player": "^4.0.0",
     "framer-motion": "^12.4.0",
     "lucide-react": "^0.474.0",
-    "next": "15.2.0",
+    "next": "^15.3.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "remotion": "^4.0.0",
