@@ -19,7 +19,7 @@ const pageVariants = {
     filter: "blur(0px)",
     transition: {
       duration: 0.6,
-      ease: [0.4, 0, 0.2, 1],
+      ease: [0.4, 0, 0.2, 1] as [number, number, number, number],
       staggerChildren: 0.1,
     },
   },
@@ -29,7 +29,7 @@ const pageVariants = {
     filter: "blur(4px)",
     transition: {
       duration: 0.3,
-      ease: [0.4, 0, 1, 1],
+      ease: [0.4, 0, 1, 1] as [number, number, number, number],
     },
   },
 };
@@ -56,6 +56,6 @@ export const fadeUpChild = {
   animate: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] },
+    transition: { duration: 0.5, ease: [0.4, 0, 0.2, 1] as [number, number, number, number] },
   },
 };
