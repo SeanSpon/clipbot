@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   title: "ClipBot - AI Video Director",
   description:
     "Upload multi-camera footage and let AI direct, cut, and polish your videos.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

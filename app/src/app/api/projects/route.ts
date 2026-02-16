@@ -1,38 +1,45 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  try {
-    const res = await fetch(`${API}/api/projects`);
-    const data = await res.json();
-    return NextResponse.json(data);
-  } catch {
-    return NextResponse.json([], { status: 200 });
-  }
+  const projects = await prisma.project.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { clips: true } } },
+  });
+
+  return NextResponse.json(
+    projects.map((p) => ({
+      id: p.id,
+      name: p.name,
+      status: p.status,
+      clipCount: p._count.clips,
+      createdAt: p.createdAt.toISOString(),
+    })),
+  );
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const res = await fetch(`${API}/api/projects`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+  const body = await request.json();
+  const name = body.name || "Untitled Project";
 
-    if (!res.ok) {
-      const errText = await res.text();
-      return NextResponse.json({ error: errText }, { status: res.status });
-    }
+  const project = await prisma.project.create({
+    data: { name },
+    include: {
+      cameras: true,
+      _count: { select: { clips: true } },
+    },
+  });
 
-    const data = await res.json();
-    return NextResponse.json(data, { status: 201 });
-  } catch (err) {
-    console.error("Create project error:", err);
-    return NextResponse.json(
-      { error: "Failed to create project" },
-      { status: 500 },
-    );
-  }
+  return NextResponse.json(
+    {
+      id: project.id,
+      name: project.name,
+      status: project.status,
+      cameras: project.cameras,
+      clipCount: project._count.clips,
+      createdAt: project.createdAt.toISOString(),
+      updatedAt: project.updatedAt.toISOString(),
+    },
+    { status: 201 },
+  );
 }

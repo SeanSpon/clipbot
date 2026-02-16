@@ -1,7 +1,5 @@
 import type { Project, ProjectListItem, Clip, ShotList } from "@/types";
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
 class ApiError extends Error {
   constructor(
     public status: number,
@@ -16,7 +14,7 @@ async function request<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetch(path, {
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
@@ -96,7 +94,7 @@ export async function uploadFile(
       reject(new Error("Upload failed")),
     );
 
-    xhr.open("POST", `${API}/api/upload`);
+    xhr.open("POST", "/api/upload");
     xhr.send(formData);
   });
 }
