@@ -1,0 +1,14 @@
+services:
+  api:
+    build: ./api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./api:/app
+      - ./uploads:/app/uploads
+      - ./exports:/app/exports
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DATABASE_URL=file:/app/data/clipbot.db
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload

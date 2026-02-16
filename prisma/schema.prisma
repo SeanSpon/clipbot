@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  status    String   @default("created") // created, uploading, transcribing, directing, ready, exporting
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sourceFile String?
+  sourceName String?
+  duration   Float?
+  fileSize   BigInt?
+
+  transcript Json? // Full WhisperX transcript
+  speakers   Json? // Speaker diarization
+
+  clips    Clip[]
+  cameras  Camera[]
+  settings Json?
+}
+
+model Clip {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  title     String
+  startTime Float
+  endTime   Float
+  duration  Float
+  score     Int // AI virality score 0-100
+
+  shotList   Json // AI Director's full scene-by-scene instructions
+  transcript String? // Clip-level transcript text
+  mood       String? // intense, chill, funny, emotional
+
+  status    String   @default("pending") // pending, accepted, rejected, exported
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+model Camera {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  label     String
+  sourceFile String
+  startTime Float   @default(0)
+  endTime   Float?
+  isDefault Boolean @default(false)
+  order     Int     @default(0)
+}

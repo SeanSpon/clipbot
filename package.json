@@ -1,0 +1,20 @@
+{
+  "name": "clipbot",
+  "private": true,
+  "workspaces": [
+    "app",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "db:push": "cd app && npx prisma db push",
+    "db:studio": "cd app && npx prisma studio",
+    "db:generate": "cd app && npx prisma generate"
+  },
+  "devDependencies": {
+    "turbo": "^2.4.0"
+  },
+  "packageManager": "npm@10.8.0"
+}
