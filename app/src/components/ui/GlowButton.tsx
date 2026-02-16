@@ -1,11 +1,11 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, type HTMLMotionProps } from "framer-motion";
 import { forwardRef } from "react";
 
 type Variant = "cyan" | "violet" | "ghost";
 
-interface GlowButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface GlowButtonProps extends Omit<HTMLMotionProps<"button">, "children"> {
   variant?: Variant;
   size?: "sm" | "md" | "lg";
   loading?: boolean;
