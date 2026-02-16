@@ -7,6 +7,8 @@ If WhisperX is not installed, falls back to the OpenAI Whisper API.
 import asyncio
 import logging
 import os
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -136,34 +138,67 @@ async def _transcribe_whisperx(
     }
 
 
+async def _extract_audio(file_path: str) -> str:
+    """Extract audio from video file using FFmpeg. Returns path to audio file."""
+    path = Path(file_path)
+    # If it's already an audio file, return as-is
+    if path.suffix.lower() in ('.mp3', '.wav', '.m4a', '.ogg', '.flac'):
+        return file_path
+
+    audio_path = path.with_suffix('.mp3')
+    if audio_path.exists():
+        return str(audio_path)
+
+    logger.info("Extracting audio from %s", file_path)
+    proc = await asyncio.to_thread(
+        subprocess.run,
+        [
+            "ffmpeg", "-i", file_path,
+            "-vn", "-acodec", "libmp3lame", "-ab", "128k",
+            "-ar", "16000", "-ac", "1",
+            "-y", str(audio_path),
+        ],
+        capture_output=True, text=True,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"FFmpeg audio extraction failed: {proc.stderr[:500]}")
+
+    logger.info("Audio extracted to %s", audio_path)
+    return str(audio_path)
+
+
 async def _transcribe_openai(
     file_path: str,
     language: Optional[str],
     progress_callback=None,
 ) -> dict:
     """Fallback transcription using the OpenAI Whisper API."""
-    from openai import AsyncOpenAI
+    from openai import OpenAI
 
-    client = AsyncOpenAI(api_key=config.OPENAI_API_KEY)
+    client = OpenAI(api_key=config.OPENAI_API_KEY)
 
     if progress_callback:
-        await progress_callback("uploading", 10, "Uploading file to OpenAI...")
+        await progress_callback("extracting_audio", 10, "Extracting audio from video...")
 
-    with open(file_path, "rb") as f:
-        kwargs = {
-            "model": "whisper-1",
-            "file": f,
-            "response_format": "verbose_json",
-            "timestamp_granularities": ["word", "segment"],
-        }
-        if language:
-            kwargs["language"] = language
+    # Extract audio first (Whisper API prefers audio files)
+    audio_path = await _extract_audio(file_path)
 
-        response = await asyncio.to_thread(
-            lambda: asyncio.get_event_loop().run_until_complete(
-                client.audio.transcriptions.create(**kwargs)
-            )
-        )
+    if progress_callback:
+        await progress_callback("uploading", 30, "Sending audio to OpenAI Whisper...")
+
+    def _call_whisper():
+        with open(audio_path, "rb") as f:
+            kwargs = {
+                "model": "whisper-1",
+                "file": f,
+                "response_format": "verbose_json",
+                "timestamp_granularities": ["word", "segment"],
+            }
+            if language:
+                kwargs["language"] = language
+            return client.audio.transcriptions.create(**kwargs)
+
+    response = await asyncio.to_thread(_call_whisper)
 
     if progress_callback:
         await progress_callback("processing", 80, "Processing transcription results...")
@@ -172,7 +207,6 @@ async def _transcribe_openai(
     segments = []
     for seg in getattr(response, "segments", []) or []:
         words = []
-        # Words from the verbose response
         seg_words = getattr(seg, "words", None) or []
         for w in seg_words:
             words.append({
@@ -187,7 +221,7 @@ async def _transcribe_openai(
             "end": getattr(seg, "end", 0.0),
             "text": getattr(seg, "text", "").strip(),
             "words": words,
-            "speaker": None,  # OpenAI API doesn't do diarization
+            "speaker": None,
         })
 
     # Also try top-level words if segments didn't have them

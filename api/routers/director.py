@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+import config
 import database
 from ai.providers import get_provider
 from director.master import MasterDirector
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/projects/{project_id}", tags=["director"])
 
 class DirectRequest(BaseModel):
     """Request body for the /direct endpoint."""
-    provider: str = Field("anthropic", description="AI provider name")
+    provider: str = Field(default=None, description="AI provider name")
     model: Optional[str] = Field(None, description="Model override")
     cameras: Optional[list[str]] = Field(None, description="Available camera angles")
     preferences: Optional[dict] = Field(None, description="User editing preferences")
@@ -68,7 +69,8 @@ async def start_direction(project_id: str, body: DirectRequest = None):
             provider_kwargs = {}
             if body.model:
                 provider_kwargs["model"] = body.model
-            provider = get_provider(body.provider, **provider_kwargs)
+            provider_name = body.provider or config.DEFAULT_AI_PROVIDER
+            provider = get_provider(provider_name, **provider_kwargs)
 
             # Run the Master Director
             director = MasterDirector(provider)

@@ -133,7 +133,7 @@ def validate_scene_continuity(shot_list: ShotList) -> list[str]:
             ):
                 warnings.append(
                     f"Scenes {i-2} to {i} use identical camera setup "
-                    f"({curr.camera.framing.value}, {curr.camera.movement.value}) "
+                    f"({curr.camera.framing}, {curr.camera.movement}) "
                     f"-- consider more visual variety"
                 )
 

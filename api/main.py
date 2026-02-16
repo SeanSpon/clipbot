@@ -9,10 +9,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 import config
 import database
-from routers import projects, transcription, director, jobs
+from routers import projects, transcription, director, jobs, render
 from services.storage import storage
 
 # Configure logging
@@ -57,6 +58,11 @@ app.include_router(projects.router, prefix="/api")
 app.include_router(transcription.router, prefix="/api")
 app.include_router(director.router, prefix="/api")
 app.include_router(jobs.router, prefix="/api")
+app.include_router(render.router, prefix="/api")
+
+
+# Serve export files
+app.mount("/exports", StaticFiles(directory=str(config.EXPORTS_DIR)), name="exports")
 
 
 @app.get("/")
