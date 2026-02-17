@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { put } from "@vercel/blob";
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,17 +16,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create uploads directory
-    const uploadDir = join(process.cwd(), "uploads", projectId);
-    await mkdir(uploadDir, { recursive: true });
-
-    // Write file
-    const buffer = Buffer.from(await file.arrayBuffer());
+    // Upload to Vercel Blob
     const ext = file.name.split(".").pop() || "mp4";
-    const filename = `${Date.now()}.${ext}`;
-    const filepath = join(uploadDir, filename);
+    const filename = `${projectId}/${Date.now()}.${ext}`;
 
-    await writeFile(filepath, buffer);
+    const blob = await put(filename, file, {
+      access: "public",
+      contentType: file.type || "video/mp4",
+    });
 
     // Count existing cameras for order
     const cameraCount = await prisma.camera.count({
@@ -39,7 +35,7 @@ export async function POST(request: NextRequest) {
       data: {
         projectId,
         label: label || file.name,
-        sourceFile: filepath,
+        sourceFile: blob.url,
         isDefault: cameraCount === 0,
         order: cameraCount,
       },
@@ -50,6 +46,7 @@ export async function POST(request: NextRequest) {
       where: { id: projectId },
       data: {
         status: "uploaded",
+        sourceFile: blob.url,
         sourceName: file.name,
         fileSize: BigInt(file.size),
       },
@@ -58,6 +55,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       cameraId: camera.id,
       filename,
+      url: blob.url,
       label: camera.label,
       size: file.size,
     });

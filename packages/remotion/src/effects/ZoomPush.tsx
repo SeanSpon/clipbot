@@ -14,6 +14,7 @@ export const ZoomPush: React.FC<ZoomPushProps> = ({
   from = 1.0,
   to = 1.15,
   easing = 'slow',
+  transformOrigin = 'center center',
   children,
 }) => {
   const frame = useCurrentFrame();
@@ -48,7 +49,7 @@ export const ZoomPush: React.FC<ZoomPushProps> = ({
         width: '100%',
         height: '100%',
         transform: `scale(${scale})`,
-        transformOrigin: 'center center',
+        transformOrigin,
       }}
     >
       {children}

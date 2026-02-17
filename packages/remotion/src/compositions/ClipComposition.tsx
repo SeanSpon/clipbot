@@ -60,6 +60,45 @@ export const ClipComposition: React.FC<ClipCompositionProps> = ({
     effectiveFps,
   );
 
+  // Compute dynamic objectPosition by interpolating focusX/focusY across scenes
+  const currentSceneIndex = clip.scenes.findIndex((scene, i) => {
+    const sceneStart = secondsToFrames(scene.startTime - clip.startTime, effectiveFps);
+    const sceneDuration = calcDuration(scene.startTime, scene.endTime, effectiveFps);
+    return frame >= sceneStart && frame < sceneStart + sceneDuration;
+  });
+  const activeScene = currentSceneIndex >= 0 ? clip.scenes[currentSceneIndex] : clip.scenes[0];
+  const nextScene = currentSceneIndex >= 0 && currentSceneIndex < clip.scenes.length - 1
+    ? clip.scenes[currentSceneIndex + 1]
+    : null;
+
+  // Current scene focus (default to center)
+  const currentFocusX = activeScene?.focusX ?? 0.5;
+  const currentFocusY = activeScene?.focusY ?? 0.5;
+
+  // Smooth interpolation toward next scene's focus near scene boundary
+  let focusX = currentFocusX;
+  let focusY = currentFocusY;
+  if (nextScene && activeScene) {
+    const sceneStart = secondsToFrames(activeScene.startTime - clip.startTime, effectiveFps);
+    const sceneDuration = calcDuration(activeScene.startTime, activeScene.endTime, effectiveFps);
+    const localFrame = frame - sceneStart;
+    const transitionFrames = Math.min(Math.round(effectiveFps * 0.5), Math.floor(sceneDuration / 3));
+    const transitionStart = sceneDuration - transitionFrames;
+
+    if (localFrame >= transitionStart) {
+      const nextFocusX = nextScene.focusX ?? 0.5;
+      const nextFocusY = nextScene.focusY ?? 0.5;
+      const t = interpolate(localFrame, [transitionStart, sceneDuration - 1], [0, 1], {
+        extrapolateLeft: 'clamp',
+        extrapolateRight: 'clamp',
+      });
+      focusX = currentFocusX + (nextFocusX - currentFocusX) * t;
+      focusY = currentFocusY + (nextFocusY - currentFocusY) * t;
+    }
+  }
+
+  const objectPosition = `${(focusX * 100).toFixed(1)}% ${(focusY * 100).toFixed(1)}%`;
+
   return (
     <AbsoluteFill style={{ backgroundColor: '#000' }}>
       {/* Base video layer */}
@@ -67,7 +106,7 @@ export const ClipComposition: React.FC<ClipCompositionProps> = ({
         <OffthreadVideo
           src={videoSrc}
           startFrom={clipStartFrame}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition }}
         />
       </Sequence>
 
@@ -143,6 +182,11 @@ const SceneRenderer: React.FC<SceneRendererProps> = ({
 }) => {
   const frame = useCurrentFrame();
 
+  // Compute transformOrigin from scene focus point
+  const sceneFocusX = scene.focusX ?? 0.5;
+  const sceneFocusY = scene.focusY ?? 0.5;
+  const sceneTransformOrigin = `${(sceneFocusX * 100).toFixed(1)}% ${(sceneFocusY * 100).toFixed(1)}%`;
+
   // Wrap content in camera effects (zoom / pan)
   let content: React.ReactNode = <AbsoluteFill />;
 
@@ -155,6 +199,7 @@ const SceneRenderer: React.FC<SceneRendererProps> = ({
         from={scene.zoom.from}
         to={scene.zoom.to}
         easing={scene.zoom.easing}
+        transformOrigin={sceneTransformOrigin}
       >
         <AbsoluteFill />
       </ZoomPush>

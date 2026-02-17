@@ -9,7 +9,7 @@ export interface ZoomConfig {
 }
 
 export interface PanConfig {
-  direction: 'left' | 'right';
+  direction: 'left' | 'right' | 'up' | 'down';
   amount: number; // pixels
   easing: 'slow' | 'fast' | 'linear';
 }
@@ -34,6 +34,8 @@ export interface Scene {
   startTime: number; // seconds
   endTime: number;   // seconds
   camera: 'main' | 'broll' | 'screen';
+  focusX?: number; // 0-1 normalized, default 0.5 (center)
+  focusY?: number; // 0-1 normalized, default 0.5 (center)
   zoom?: ZoomConfig;
   pan?: PanConfig;
   typography?: TypographyConfig;
@@ -159,6 +161,7 @@ export interface ZoomPushProps extends BaseEffectProps {
   from?: number;
   to?: number;
   easing?: 'slow' | 'fast' | 'linear' | 'spring';
+  transformOrigin?: string;
   children: React.ReactNode;
 }
 
@@ -168,7 +171,7 @@ export interface QuickCutProps extends BaseEffectProps {
 }
 
 export interface PanSweepProps extends BaseEffectProps {
-  direction?: 'left' | 'right';
+  direction?: 'left' | 'right' | 'up' | 'down';
   amount?: number;
   children: React.ReactNode;
 }

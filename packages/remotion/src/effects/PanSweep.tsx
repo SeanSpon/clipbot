@@ -4,7 +4,7 @@ import type { PanSweepProps } from '../types';
 import { getEasing } from '../lib/timing';
 
 /**
- * Horizontal camera pan/sweep. Translates children along the X axis
+ * Camera pan/sweep. Translates children along X or Y axis
  * over the duration of the effect.
  */
 export const PanSweep: React.FC<PanSweepProps> = ({
@@ -21,9 +21,10 @@ export const PanSweep: React.FC<PanSweepProps> = ({
     return <>{children}</>;
   }
 
-  const sign = direction === 'left' ? -1 : 1;
+  const isVertical = direction === 'up' || direction === 'down';
+  const sign = direction === 'left' || direction === 'up' ? -1 : 1;
 
-  const translateX = interpolate(
+  const translate = interpolate(
     localFrame,
     [0, durationInFrames - 1],
     [0, sign * amount],
@@ -34,12 +35,16 @@ export const PanSweep: React.FC<PanSweepProps> = ({
     },
   );
 
+  const transform = isVertical
+    ? `translateY(${translate}px)`
+    : `translateX(${translate}px)`;
+
   return (
     <div
       style={{
         width: '100%',
         height: '100%',
-        transform: `translateX(${translateX}px)`,
+        transform,
       }}
     >
       {children}
