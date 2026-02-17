@@ -1,66 +1,71 @@
 import { NextRequest, NextResponse } from "next/server";
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { prisma } from "@/lib/prisma";
-import { put } from "@vercel/blob";
 
 export async function POST(request: NextRequest) {
+  const body = (await request.json()) as HandleUploadBody;
+
   try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File | null;
-    const projectId = formData.get("projectId") as string | null;
-    const label = formData.get("label") as string | null;
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async (_pathname, clientPayload) => {
+        // clientPayload contains projectId + label from the client
+        return {
+          allowedContentTypes: [
+            "video/mp4",
+            "video/quicktime",
+            "video/webm",
+            "video/x-msvideo",
+            "video/x-matroska",
+            "audio/mpeg",
+            "audio/wav",
+          ],
+          maximumSizeInBytes: 500 * 1024 * 1024, // 500MB
+          tokenPayload: clientPayload,
+        };
+      },
+      onUploadCompleted: async ({ blob, tokenPayload }) => {
+        try {
+          const { projectId, label, fileName, fileSize } = JSON.parse(
+            tokenPayload || "{}",
+          );
 
-    if (!file || !projectId) {
-      return NextResponse.json(
-        { error: "Missing file or projectId" },
-        { status: 400 },
-      );
-    }
+          if (!projectId) return;
 
-    // Upload to Vercel Blob
-    const ext = file.name.split(".").pop() || "mp4";
-    const filename = `${projectId}/${Date.now()}.${ext}`;
+          const cameraCount = await prisma.camera.count({
+            where: { projectId },
+          });
 
-    const blob = await put(filename, file, {
-      access: "public",
-      contentType: file.type || "video/mp4",
-    });
+          await prisma.camera.create({
+            data: {
+              projectId,
+              label: label || fileName || "Camera",
+              sourceFile: blob.url,
+              isDefault: cameraCount === 0,
+              order: cameraCount,
+            },
+          });
 
-    // Count existing cameras for order
-    const cameraCount = await prisma.camera.count({
-      where: { projectId },
-    });
-
-    // Create camera record in DB
-    const camera = await prisma.camera.create({
-      data: {
-        projectId,
-        label: label || file.name,
-        sourceFile: blob.url,
-        isDefault: cameraCount === 0,
-        order: cameraCount,
+          await prisma.project.update({
+            where: { id: projectId },
+            data: {
+              status: "uploaded",
+              sourceFile: blob.url,
+              sourceName: fileName,
+              fileSize: fileSize ? BigInt(fileSize) : null,
+            },
+          });
+        } catch (dbErr) {
+          console.error("onUploadCompleted DB error:", dbErr);
+          // Don't throw — blob is already stored, DB can be fixed later
+        }
       },
     });
 
-    // Update project status and file info
-    await prisma.project.update({
-      where: { id: projectId },
-      data: {
-        status: "uploaded",
-        sourceFile: blob.url,
-        sourceName: file.name,
-        fileSize: BigInt(file.size),
-      },
-    });
-
-    return NextResponse.json({
-      cameraId: camera.id,
-      filename,
-      url: blob.url,
-      label: camera.label,
-      size: file.size,
-    });
+    return NextResponse.json(jsonResponse);
   } catch (err) {
-    console.error("Upload error:", err);
+    console.error("Upload handler error:", err);
     return NextResponse.json(
       { error: "Upload failed" },
       { status: 500 },

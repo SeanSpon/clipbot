@@ -68,35 +68,26 @@ export async function uploadFile(
   file: File,
   label: string,
   onProgress?: (percent: number) => void,
-): Promise<{ cameraId: string }> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("projectId", projectId);
-    formData.append("label", label);
+): Promise<{ url: string }> {
+  const { upload } = await import("@vercel/blob/client");
 
-    xhr.upload.addEventListener("progress", (e) => {
-      if (e.lengthComputable && onProgress) {
-        onProgress(Math.round((e.loaded / e.total) * 100));
+  const blob = await upload(file.name, file, {
+    access: "public",
+    handleUploadUrl: "/api/upload",
+    clientPayload: JSON.stringify({
+      projectId,
+      label,
+      fileName: file.name,
+      fileSize: file.size,
+    }),
+    onUploadProgress: (e) => {
+      if (onProgress) {
+        onProgress(Math.round(e.percentage));
       }
-    });
-
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        resolve(JSON.parse(xhr.responseText));
-      } else {
-        reject(new ApiError(xhr.status, xhr.responseText));
-      }
-    });
-
-    xhr.addEventListener("error", () =>
-      reject(new Error("Upload failed")),
-    );
-
-    xhr.open("POST", "/api/upload");
-    xhr.send(formData);
+    },
   });
+
+  return { url: blob.url };
 }
 
 /* ---- Director ---- */
