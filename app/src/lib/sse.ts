@@ -11,14 +11,12 @@ export interface SSEConnection {
   close: () => void;
 }
 
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-
 export function connectSSE(
   projectId: string,
   onEvent: (event: SSEEvent) => void,
   onError?: (error: Event) => void,
 ): SSEConnection {
-  const url = `${API}/api/projects/${projectId}/events`;
+  const url = `/api/projects/${projectId}/events`;
   const source = new EventSource(url);
 
   source.onmessage = (e) => {
